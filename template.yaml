@@ -1,0 +1,36 @@
+#Test environment stack for product generator
+#StackName: product-generator-dev
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  product-generator
+
+  Sample SAM Template for product-generator
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 2048
+
+Resources:
+  ProductGenerator:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: product-generator
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+      Role: arn:aws:iam::191337286028:role/lambda-with-shopify
+      Layers:
+        - arn:aws:lambda:us-east-2:191337286028:layer:pandas-layer:2
+      Environment:
+        Variables:
+          bulk_manager_table: BulkManager
+          s3_file_upload_bucket: shopify-file-save
+          prepared_products_bucket: shopify-prepared-products-dev
+          import_topic_arn: arn:aws:sns:us-east-2:191337286028:ProductImportTopic
+
+
+Outputs:
+  ProductGenerator:
+    Description: "product generator Function ARN"
+    Value: !GetAtt ProductGenerator.Arn
