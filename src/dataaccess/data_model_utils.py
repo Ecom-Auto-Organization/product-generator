@@ -1,4 +1,5 @@
 from utility import utils
+import json
 
 def convert_to_db_file (file_obj):
     """Converts file object into object that can be used in database"""
@@ -19,7 +20,7 @@ def convert_to_db_file (file_obj):
     if 'header_row' in file_obj:
         db_file['header_row'] = file_obj['header_row']
     if 'field_details' in file_obj:
-        db_file['field_details'] = file_obj['field_details']
+        db_file['field_details'] = json.dumps(file_obj['field_details'])
 
     return db_file
 
@@ -41,7 +42,7 @@ def extract_file_details(db_file):
     if 'header_row' in db_file:
         file['header_row'] = db_file['header_row']
     if 'field_details' in db_file:
-        file['field_details'] = db_file['field_details']
+        file['field_details'] = json.loads(db_file['field_details'])
     
     return file
 
@@ -53,10 +54,12 @@ def convert_to_db_job (job):
 
     db_job['PK'] = utils.join_str('job#', job['id'])
     db_job['SK'] = utils.join_str('user#', job['user_id'])
-    if 'status' in job:
-        db_job['SK1'] = utils.join_str('status#', job['status'])
+    if 'start_time' in job:
+        db_job['SK1'] = utils.join_str(job['start_time'])
     if 'type' in job:
-        db_job['SK2'] = utils.join_str('job_type#', job['type'])
+        start = '--'
+        if 'start_time' in job: start = job['start_time']
+        db_job['SK2'] = utils.join_str(job['type'], '#', start)
     if 'total_products' in job:
         db_job['total_products'] = job['total_products']
     if 'total_success' in job:
@@ -64,15 +67,17 @@ def convert_to_db_job (job):
     if 'total_failed' in job:
         db_job['total_failed'] = job['total_failed']
     if 'edit_rules' in job:
-        db_job['edit_rules'] = job['edit_rules']
-    if 'start_time' in job:
-        db_job['start_time'] = job['start_time']
+        db_job['edit_rules'] = json.dumps(job['edit_rules'])
     if 'current_batch' in job:
         db_job['current_batch'] = job['current_batch']
     if 'input_products' in job:
         db_job['input_products'] = job['input_products']
     if 'options' in job:
-        db_job['options'] = job['options']
+        db_job['options'] = json.dumps(job['options'])
+    if 'status' in job:
+        db_job['status'] = job['status']
+    if 'duration' in job:
+        db_job['duration'] = job['duration']
 
     return db_job
 
@@ -83,24 +88,28 @@ def extract_job_details(db_job):
     job['id'] = utils.extract_str(db_job['PK'], delimeter, 1)
     job['user_id'] = utils.extract_str(db_job['SK'], delimeter, 1)
     if 'SK1' in db_job:
-        job['status'] = utils.extract_str(db_job['SK1'], delimeter, 1)
+        job['start_time'] = db_job['SK1']
     if 'SK2' in db_job:
-        job['type'] = utils.extract_str(db_job['SK2'], delimeter, 1)
+        job['type'] = utils.extract_str(db_job['SK2'], delimeter, 0)
     if 'total_products' in db_job:
-        job['total_products'] = db_job['total_products']
+        job['total_products'] = int(db_job['total_products'])
     if 'total_success' in db_job:
-        job['total_success'] = db_job['total_success']
+        job['total_success'] = int(db_job['total_success'])
     if 'total_failed' in db_job:
-        job['total_failed'] = db_job['total_failed']
+        job['total_failed'] = int(db_job['total_failed'])
     if 'edit_rules' in db_job:
-        job['edit_rules'] = db_job['edit_rules']
+        job['edit_rules'] = json.loads(db_job['edit_rules'])
     if 'start_time' in db_job:
         job['start_time'] = db_job['start_time']
     if 'current_batch' in db_job:
-        job['current_batch'] = db_job['current_batch']
+        job['current_batch'] = int(db_job['current_batch'])
     if 'input_products' in db_job:
         job['input_products'] = db_job['input_products']
     if 'options' in db_job:
-        job['options'] = db_job['options']
+        job['options'] = json.loads(db_job['options'])
+    if 'status' in db_job:
+        job['status'] = db_job['status']
+    if 'duration' in db_job:
+        job['duration'] = db_job['duration']
     
     return job

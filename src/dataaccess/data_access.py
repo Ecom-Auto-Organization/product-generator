@@ -19,6 +19,7 @@ class DataAccess:
         self._upload_bucket = os.environ.get('s3_file_upload_bucket')
         self._prepared_products_bucket = os.environ.get('prepared_products_bucket')
         self._s3_client = boto3.client('s3')
+        self._dynamo_client = boto3.client('dynamodb')
         bulk_manager_table = os.environ.get('bulk_manager_table')
         self._dynamodb = boto3.resource('dynamodb')
         self._bulk_manager_table =  self._dynamodb.Table(bulk_manager_table) 
@@ -35,25 +36,26 @@ class DataAccess:
             if 'Item' in response:
                 db_file = response['Item']
                 file_obj = data_model_utils.extract_file_details(db_file)
-            return file_obj 
+                return file_obj 
+            else:
+                raise DataAccessError('Response to get file is invalid. Details: ' + response)
         except ClientError as error:
             raise DataAccessError(error)
 
 
-    def get_job(self, job_id):
-        job = utils.join_str('job#', job_id)
-        prefix = 'user'
+    def get_job(self, job_id, user_id):
+        job_to_get = {'id': job_id, 'user_id': user_id}
+        db_job = data_model_utils.convert_to_db_job(job_to_get)
 
         try:
-            response = self._bulk_manager_table.query(
-                KeyConditionExpression=Key('PK').eq(job) & Key('SK').begins_with(prefix)
-            )
-
-            job = None
-            if len(response['Items']) > 0:
-                db_job = response['Items'][0]
-                job = data_model_utils.extract_job_details(db_job)
-            return job
+            response = self._bulk_manager_table.get_item(Key=db_job)
+            job_obj = None
+            if 'Item' in response:
+                db_job = response['Item']
+                job_obj = data_model_utils.extract_job_details(db_job)
+                return job_obj 
+            else:
+                raise DataAccessError('Response to get job is invalid. Details: ' + response)
         except ClientError as error:
             raise DataAccessError(error)
 
@@ -92,6 +94,84 @@ class DataAccess:
             )
 
             logging.info('Updated job successfully: %s', response)
+            return True
+        except ClientError as error:
+            raise DataAccessError(error)
+        except Exception as error:
+            raise DataAccessError(error)
+
+
+    def update_job_transaction(self, job):
+        try:
+            response = self._dynamo_client.transact_write_items(
+                TransactItems=[
+                    {
+                        'Update': {
+                            'TableName': os.environ.get('bulk_manager_table'),
+                            'Key': {
+                                'PK': { 'S': utils.join_str('job#', job['id']) },
+                                'SK': { 'S': utils.join_str('user#', job['user_id']) },
+                            },
+                            'UpdateExpression': 'SET #st=:status',
+                            'ExpressionAttributeValues': {':status': { 'S': job['status'] }},
+                            'ExpressionAttributeNames': {'#st': 'status'}
+                        }
+                    },
+                    {
+                        'Update': {
+                            'TableName': os.environ.get('bulk_manager_table'),
+                            'Key': {
+                                'PK': { 'S': utils.join_str('user#', job['user_id']) },
+                                'SK': { 'S': 'user' },
+                            },
+                            'UpdateExpression': 'SET active_job_count = active_job_count + :incr',
+                            'ExpressionAttributeValues': {
+                                ':incr': { 'N': '1' }
+                            }
+                        }
+                    }
+                ]
+            )
+            logging.info('Job update transaction completed successfully. Details: %s', job)
+            return True
+        except ClientError as error:
+            raise DataAccessError(error)
+        except Exception as error:
+            raise DataAccessError(error)
+
+
+    def update_failed_job_transaction(self, job):
+        try:
+            response = self._dynamo_client.transact_write_items(
+                TransactItems=[
+                    {
+                        'Update': {
+                            'TableName': os.environ.get('bulk_manager_table'),
+                            'Key': {
+                                'PK': { 'S': utils.join_str('job#', job['id']) },
+                                'SK': { 'S': utils.join_str('user#', job['user_id']) },
+                            },
+                            'UpdateExpression': 'SET #st=:status',
+                            'ExpressionAttributeValues': {':status': { 'S': job['status'] }},
+                            'ExpressionAttributeNames': {'#st': 'status'}
+                        }
+                    },
+                    {
+                        'Update': {
+                            'TableName': os.environ.get('bulk_manager_table'),
+                            'Key': {
+                                'PK': { 'S': utils.join_str('user#', job['user_id']) },
+                                'SK': { 'S': 'user' },
+                            },
+                            'UpdateExpression': 'SET active_job_count = active_job_count - :incr',
+                            'ExpressionAttributeValues': {
+                                ':incr': { 'N': '1' }
+                            }
+                        }
+                    }
+                ]
+            )
+            logging.info('Failed Job update transaction completed successfully. Details: %s', job)
             return True
         except ClientError as error:
             raise DataAccessError(error)

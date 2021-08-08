@@ -43,10 +43,10 @@ class ProductGenerator:
         elif file_type == FileType.CSV:
             df = pd.read_csv(file_bytes, header=0)
         else:
-            raise MissingArgumentError('Couldn\'t process file. File Type must be either CSV or EXCEL')
+            raise MissingArgumentError('Couldn\'t process file. File Type must be either CSV or EXCEL file.')
 
         if 'title' not in self._field_details:
-            raise MissingArgumentError('File missing title field in the list of fields')
+            raise MissingArgumentError('File is missing title column.')
         
         df = df.dropna(axis=1, how='all').dropna(axis=0, how='all')
         row_values = df.values.tolist()
@@ -515,6 +515,20 @@ class ProductGenerator:
 
 
     def __get_first_product_position(self, index_list, start_index_number):
+        """Gets the row position that we should start reading products from in the spreadsheet
+
+        Parameters
+        ----------
+        index_list: list, required
+            The list of row indexes from pandas or excel sheet
+
+        start_index_number: int, required
+            this is the line indicated from the spreadsheet as the first row to read from
+
+        Returns
+        ------
+        first row to read: int
+        """
         for i in range(len(index_list)):
             if index_list[i] == start_index_number:
                 return i

@@ -13,29 +13,24 @@ def lambda_handler(event, context):
     event: dict, required
         API Gateway Lambda Proxy Input Format
 
-        Event doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html#api-gateway-simple-proxy-for-lambda-input-format
-
     context: object, required
         Lambda Context runtime methods and attributes
-
-        Context doc: https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html
 
     Returns
     ------
     API Gateway Lambda Proxy Output Format: dict
-
-        Return doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
     """
 
     dataAccess = DataAccess()
     message_payload = json.loads(event['Records'][0]['Sns']['Message'])
     file_id = message_payload['fileId']
     job_id = message_payload['jobId']
+    user_id = message_payload['userId']
     
     try:
         file_obj = dataAccess.get_file(file_id)
-        job = dataAccess.get_job(job_id)
-        dataAccess.basic_job_update({
+        job = dataAccess.get_job(job_id, user_id)
+        dataAccess.update_job_transaction({
                 'id': job_id,
                 'user_id': job['user_id'],
                 'status': JobStatus.PREPARING.name
@@ -60,11 +55,12 @@ def lambda_handler(event, context):
             'input_products': prepared_products_file_key
         })
         dataAccess.publish_to_product_processor({
-            'jobId': job_id
+            'jobId': job_id,
+            'userId': user_id
         })
     except Exception as error:
-        logging.error('Job failed to prepare products. Details: %s', error)
-        dataAccess.basic_job_update({
+        logging.exception('Job failed to prepare products. Details: %s', error)
+        dataAccess.update_failed_job_transaction({
                 'id': job_id,
                 'user_id': job['user_id'],
                 'status': JobStatus.FAILED.name
