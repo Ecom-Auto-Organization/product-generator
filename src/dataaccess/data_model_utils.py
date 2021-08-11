@@ -78,6 +78,8 @@ def convert_to_db_job (job):
         db_job['status'] = job['status']
     if 'duration' in job:
         db_job['duration'] = job['duration']
+    if 'product_limit_exceeded' in job:
+        db_job['product_limit_exceeded'] = job['product_limit_exceeded']
 
     return db_job
 
@@ -111,5 +113,7 @@ def extract_job_details(db_job):
         job['status'] = db_job['status']
     if 'duration' in db_job:
         job['duration'] = db_job['duration']
+    if 'product_limit_exceeded' in db_job:
+        job['product_limit_exceeded'] = db_job['product_limit_exceeded']
     
     return job

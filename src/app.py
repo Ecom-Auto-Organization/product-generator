@@ -20,7 +20,7 @@ def lambda_handler(event, context):
     ------
     API Gateway Lambda Proxy Output Format: dict
     """
-
+    user_limit = 250 ##this is hardcoded for now. will update later to included in user with the different plans
     dataAccess = DataAccess()
     message_payload = json.loads(event['Records'][0]['Sns']['Message'])
     file_id = message_payload['fileId']
@@ -45,6 +45,10 @@ def lambda_handler(event, context):
         }
         product_generator = ProductGenerator(product_generator_info)
         products = product_generator.get_products()
+        product_limit_exceeded = False
+        if len(products) > user_limit: 
+            products = products[0:user_limit]
+            product_limit_exceeded = True
         prepared_products_file_key = 'products' + '_job_id_' + job_id + '.json'
         dataAccess.save_prepared_products(prepared_products_file_key, json.dumps(products))
         dataAccess.basic_job_update({
@@ -52,7 +56,8 @@ def lambda_handler(event, context):
             'user_id': job['user_id'],
             'total_products': len(products),
             'current_batch': 1,
-            'input_products': prepared_products_file_key
+            'input_products': prepared_products_file_key,
+            'product_limit_exceeded': product_limit_exceeded
         })
         dataAccess.publish_to_product_processor({
             'jobId': job_id,
