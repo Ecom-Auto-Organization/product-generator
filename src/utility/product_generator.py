@@ -94,7 +94,7 @@ class ProductGenerator:
 
             if has_previous_row and (prev_product_title is not None and prev_product_title == product_title) or (prev_handle is not None and prev_handle == handle):
                 product_item = products[- 1]
-                product_variant = self.__get_product_variant(current_row_values, product_item)
+                product_variant = self.__get_product_variant(current_row_values, product_item, row_number)
                 if bool(product_variant): product_item['variants'].append(product_variant)
             else:
                 product_item['errors'] = []
