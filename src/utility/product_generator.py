@@ -351,8 +351,13 @@ class ProductGenerator:
         if 'variantWeight' in self._field_details:
             weight = self.__get_variant_weight(row_values)
             if weight is not None:
-                variant['weight'] = weight['weight']
-                variant['weightUnit'] = weight['weight_unit']
+                weightValue = weight['weight']
+                if not isinstance(weightValue, float):
+                    warning_message = base_output_msg + 'Invalid variant weight value. Value should be a number.'
+                    product_item['warnings'].append(warning_message)
+                else:
+                    variant['weight'] = weight['weight']
+                    variant['weightUnit'] = weight['weight_unit']
 
         if 'variantTracked' in self._field_details or 'variantCost' in self._field_details:
             variant['inventoryItem'] = {}
